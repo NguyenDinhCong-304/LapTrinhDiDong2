@@ -5,76 +5,54 @@ import { TouchableOpacity } from 'react-native-gesture-handler';
 import { NavigationContainer, NavigationProp, RouteProp, useRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from 'expo-router';
-const DATA= [
-  { id: '1',
-    title: 'Lenovo',
-    price: '17.990.000',
-    image:require("../../assets/images/lenovo-ideapad-slim-3-15irh8-i7-83em003fvn-thumb-400x400.jpg"),
-    description:'123'
-  },
-  { id: '2',
-    title: 'Dell',
-    price: '16.990.000',
-    image:require("../../assets/images/Dell.jpg"),
-    description:'123'
-  },
-  { id: '3',
-    title: 'HP',
-    price: '17.990.000',
-    image:require("../../assets/images/HP.jpg"),
-    description:'123'
-  },
-  { id: '4',
-    title: 'Macbook',
-    price: '21.990.000',
-    image:require("../../assets/images/Macbook.jpg"),
-    description:'123'
-  },
-  {
-    id:'5',
-    title:'Aus',
-    price:'19.990.000',
-    image:require("../../assets/images/asus.webp"),
-    description:'123'
-  },
-  {
-    id:'5',
-    title:'MSI',
-    price:'18.990.000',
-    image:require("../../assets/images/MSI.jpg"),
-    description:'123'
-  },
-]
-
-
-const DetailScreen = () => {
-  
-  const navigation : NavigationProp<RootStackParamList> = useNavigation();
-  const route : RouteProp<RootStackParamList, 'Detail'> = useRoute();
-  return (
-    <ScrollView style={styles.container}>
-      <Image source={route.params?.image} style={styles.image} />
-      <Text style={styles.title}>{route.params?.title}</Text>
-      <Text style={styles.price}>Giá: {route.params?.price}VNĐ</Text>
-      <Text style={styles.description}>{route.params?.description}</Text>
-      <Button title="Thêm vào giỏ hàng" onPress={() => {/* Xử lý thêm vào giỏ hàng */}} />
-    </ScrollView>
-  );
-};
-
+import { useEffect, useState } from 'react';
 
 const HomeScreen=(props:any) => {
   const navigation: NavigationProp<RootStackParamList>= useNavigation();
+  interface Product {
+    id: string,
+    title: string,
+    price: number,
+    image: any,
+    description: string,
+    category: string,
+    rating:{
+      rate: number,
+      count: number
+    }
+  };
+  //Làm tên sản phẩm ngắn lại: 
+  const shortTitle = (title: string) => {
+    const maxLength = 20;
+    return title.length > maxLength ? title.substring(0, maxLength) + '...' : title;
+  };
+
+  const [isLoading, setIsLoading] = useState(true)
+
+  const [posts, setPost] = useState<Product[]>([])
+
+  useEffect(()=>{
+    const fetchPosst = async ()=>{
+      setIsLoading(true)
+      const response = await fetch ('https://fakestoreapi.com/products');
+      const posts = (await response.json()) as Product[];
+      setPost (posts)
+      setIsLoading(false)
+    };
+    fetchPosst();
+  }, []);
+
+  if (isLoading){
+    return <Text style={{textAlign:'center', fontSize: 30,paddingTop:400 }}>Loading...</Text>;
+  }
+
   return (
     <View style={styles.container}>
-      
       <View style={styles.inputContainer}>
-       
           <Image
             style={styles.imageLogo}
             source={require('../../assets/images/Logolaptopnew.jpg')}
           />
-        
         <View style={styles.input}>
           <View style={styles.icons} >
               <AntDesign name="search1" size={24} color="gray" />
@@ -93,34 +71,47 @@ const HomeScreen=(props:any) => {
         source={require('../../assets/images/Slider.jpg')}
       /> 
       <Text style={{fontSize:20, fontWeight:'600', paddingTop: 10, paddingLeft:10}}>Danh mục:</Text>
-      <View style={styles.borderContainer}>
-        <Text style={styles.boder}>Lenovo</Text>
-        <Text style={styles.boder}>Macbook</Text>
-        <Text style={styles.boder}>Dell</Text>
-        <Text style={styles.boder}>HP</Text>
-      </View>
-      <View>
-        <Text style={{fontSize:20, fontWeight:'600', paddingTop: 10, paddingLeft:10}}>Sản phẩm mới:</Text>
+        <ScrollView horizontal={true} style={styles.borderContainer}>
+          <TouchableOpacity style={styles.boder}>Lenovo</TouchableOpacity>
+          <TouchableOpacity style={styles.boder}>Macbook</TouchableOpacity>
+          <TouchableOpacity style={styles.boder}>Dell</TouchableOpacity>
+          <TouchableOpacity style={styles.boder}>HP</TouchableOpacity>
+        </ScrollView>
+        <Text style={{fontSize:20, fontWeight:'600', paddingTop: 10, paddingLeft:10, paddingBottom:10}}>Danh sách sản phẩm:</Text>
         <FlatList
-          data={DATA}
+          data={posts}
           numColumns={2}
-          keyExtractor={(item)=>item.id}
+          keyExtractor={({id})=>id}
           renderItem={({item})=> 
-            <View style={styles.foot}>
+            <View style={styles.product}>
               <TouchableOpacity onPress={()=>navigation.navigate('Detail',  item)}>
-                <Image style={{width: 150, height: 100, margin: 10}} source={item.image}/>
+                <Image style={{width: 150, height: 130, margin: 10}} source={item.image}/>
               <View>
-                <Text style={{textAlign:'center'}}>{item.title}</Text>
-                <Text style={{textAlign:'center'}}>Giá:{item.price}</Text>
+                <Text style={{textAlign:'center',borderTopWidth:1 ,borderTopColor:'#ccc'}}>{shortTitle(item.title)}</Text>
+                <Text style={{textAlign:'center', paddingBottom:10}}>Giá: {item.price}$</Text>
               </View>
               </TouchableOpacity>
             </View>
           }
         />
-      </View>
     </View>
   );
 }
+
+const DetailScreen = () => {
+  const navigation : NavigationProp<RootStackParamList> = useNavigation();
+  const route : RouteProp<RootStackParamList, 'Detail'> = useRoute();
+  return (
+    <ScrollView style={styles.container}>
+      <Image source={route.params?.image} style={styles.image} />
+      <Text style={styles.title}>{route.params?.title}</Text>
+      <Text style={styles.price}>Giá: {route.params?.price}VNĐ</Text>
+      <Text style={styles.description}>{route.params?.description}</Text>
+      <Button title="Thêm vào giỏ hàng" onPress={() => {/* Xử lý thêm vào giỏ hàng */}} />
+      <Text style={styles.textDetail}>Sản phẩm liên quan: </Text>
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
   container:{
@@ -157,7 +148,6 @@ const styles = StyleSheet.create({
   imageg:{
     padding: 0,
     margin: 0,
-
   },
   buttonContainer:{
     flexDirection:'row',
@@ -169,7 +159,7 @@ const styles = StyleSheet.create({
   },
   boder:{
     backgroundColor: 'white',
-    height: 40,
+    height: 35,
     paddingVertical: 10,
     marginVertical: 10,
     borderRadius: 10,
@@ -180,12 +170,17 @@ const styles = StyleSheet.create({
   borderContainer:{
     flexDirection:'row',
     marginHorizontal: 'auto',
+    height:200,
   },
-  foot:{
-    
+  product:{
+    borderWidth:1,
     alignItems: 'center',
     fontSize: 60,
-    margin: 'auto'
+    margin: 'auto',
+    marginTop: 10,
+    borderRadius: 10,
+    backgroundColor: 'white',
+    borderColor: '#ccc'
   },
   container1: {
     flex: 1,
@@ -194,7 +189,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 300,
+    height: 400,
     borderRadius: 10,
   },
   title: {
@@ -211,10 +206,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginVertical: 8,
   },
+  textDetail: {
+    fontWeight:600,
+    fontSize: 20,
+    marginTop: 20,
+    padding: 10,
+    color: 'gray'
+  }
 });
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function App() {
+function Home() {
   return (
     <NavigationContainer independent={true}>
       <Stack.Navigator>
@@ -225,6 +228,6 @@ function App() {
   );
 }
 
-export default App;
+export default Home;
 
 

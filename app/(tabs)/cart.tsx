@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Alert, Button } from 'react-native';
 
 const CartScreen = () => {
   interface CartItem {
@@ -8,35 +9,46 @@ const CartScreen = () => {
     price: number;
     image: any;
     selected: boolean;
-    quantity: number; // Thêm thuộc tính số lượng
+    quantity: number;
   }
 
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: '1',
-      title: 'Lenovo',
-      price: 17990000,
-      image: require("../../assets/images/lenovo-ideapad-slim-3-15irh8-i7-83em003fvn-thumb-400x400.jpg"),
-      selected: false,
-      quantity: 1, // Khởi tạo số lượng
-    },
-    {
-      id: '2',
-      title: 'Dell',
-      price: 16990000,
-      image: require("../../assets/images/Dell.jpg"),
-      selected: false,
-      quantity: 1,
-    },
-    {
-      id: '3',
-      title: 'HP',
-      price: 17990000,
-      image: require("../../assets/images/HP.jpg"),
-      selected: false,
-      quantity: 1,
-    },
-  ]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCartItems = async () => {
+      try {
+        const cartResponse = await fetch('https://fakestoreapi.com/carts/1');
+        const cartData = await cartResponse.json();
+
+        const productPromises = cartData.products.map(async (product: { productId: number, quantity: number }) => {
+          const productResponse = await fetch(`https://fakestoreapi.com/products/${product.productId}`);
+          const productData = await productResponse.json();
+
+          return {
+            id: productData.id.toString(),
+            title: productData.title,
+            price: productData.price,
+            image: productData.image,
+            selected: false,
+            quantity: product.quantity,
+          };
+        });
+
+        const products = await Promise.all(productPromises);
+        setCartItems(products);
+      } catch (error) {
+        console.error('Error fetching cart items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCartItems();
+  }, []);
+  if (loading){
+    return <Text style={{textAlign:'center', fontSize: 30,paddingTop:400 }}>Loading...</Text>;
+  }
 
   const totalPrice = cartItems.reduce((total, item) =>
     item.selected ? total + item.price * item.quantity : total, 0);
@@ -71,10 +83,17 @@ const CartScreen = () => {
 
   const renderItem = ({ item }: { item: CartItem }) => (
     <View style={styles.itemContainer}>
+      <TouchableOpacity onPress={() => toggleSelect(item.id)} style={styles.selectButton}>
+        <MaterialIcons 
+          name={item.selected ? 'check-box' : 'check-box-outline-blank'} 
+          size={24} 
+          color={item.selected ? 'gray' : 'black'} 
+        />
+      </TouchableOpacity>
       <Image source={item.image} style={styles.itemImage} />
       <View style={styles.itemDetails}>
         <Text style={styles.itemName}>{item.title}</Text>
-        <Text style={styles.itemPrice}>{item.price}VNĐ</Text>
+        <Text style={styles.itemPrice}>{item.price}$</Text>
         <View style={styles.quantityContainer}>
           <TouchableOpacity onPress={() => decreaseQuantity(item.id)} style={styles.quantityButton}>
             <Text style={styles.quantityText}>-</Text>
@@ -85,20 +104,43 @@ const CartScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-      <TouchableOpacity onPress={() => toggleSelect(item.id)} style={styles.selectButton}>
-        <Text style={styles.buttonText}>{item.selected ? 'Bỏ Chọn' : 'Chọn'}</Text>
-      </TouchableOpacity>
       <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteButton}>
         <Text style={styles.buttonText}>Xóa</Text>
       </TouchableOpacity>
     </View>
   );
 
-  const handleCheckout = () => {
+  const handlePay = () => {
     const selectedItems = cartItems.filter(item => item.selected);
-    console.log("Sản phẩm chọn để thanh toán:", selectedItems);
-    // Thêm mã xử lý thanh toán ở đây
-  };
+    if (selectedItems.length > 0) {
+      Alert.alert(
+        'Chọn Phương Thức Thanh Toán',
+        'Vui lòng chọn phương thức thanh toán của bạn',
+        [
+          {
+            text: 'Thanh toán qua thẻ',
+            onPress: () => {
+              Alert.alert('Thanh toán thành công');
+              setCartItems(prevItems => prevItems.filter(item => !item.selected));
+            },
+          },
+          {
+            text: 'Thanh toán khi nhận hàng',
+            onPress: () => {
+              Alert.alert('Đặt hàng thành công', 'Bạn sẽ thanh toán khi nhận hàng!');
+              setCartItems(prevItems => prevItems.filter(item => !item.selected));
+            },
+          },
+          {
+            text: 'Hủy',
+            style: 'cancel',
+          },
+        ]
+      );
+    } else {
+      Alert.alert('Thông báo', 'Chọn ít nhất một sản phẩm để thanh toán.');
+    }
+};
 
   return (
     <View style={styles.container}>
@@ -108,8 +150,8 @@ const CartScreen = () => {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
       />
-      <Text style={styles.total}>Tổng: {totalPrice}VNĐ</Text>
-      <TouchableOpacity style={styles.checkoutButton} onPress={handleCheckout}>
+      <Text style={styles.total}>Tổng: {totalPrice}$</Text>
+      <TouchableOpacity onPress={handlePay} style={styles.checkoutButton} >
         <Text style={styles.buttonText}>Thanh Toán</Text>
       </TouchableOpacity>
     </View>
@@ -168,7 +210,6 @@ const styles = StyleSheet.create({
     textAlign:'center'
   },
   selectButton: {
-    backgroundColor: '#007bff',
     padding: 8,
     borderRadius: 5,
     marginRight: 8,
